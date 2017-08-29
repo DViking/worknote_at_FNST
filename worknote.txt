@@ -1,0 +1,476 @@
+-------------------------------------------------------------------
++ the ~/linux is the kernel 4.12.* the new
+
++ the ~/rpmbuild/BUILD/kernel-3.10.0-6*/linux-3.10.0*/ is the old kernel and 
+  my job is to test while the bug will review in the old kernel. In what case
+  will the bug review. All the test job is suggested try in the VirtualBox.
+
+7/11/2017 17:57:51 by @Ding Weiqin
+------------------------------------------------------------------
+
+-------------------------------------------------------------------
++ the kernel 4.12.* is located in the user viking.
++ the kernel-3.10.0-6.* is located in the user root.
+
+7/12/2017 09:26:01 by @Ding Weiqin
+--------------------------------------------------------------------
+
+--------------------------------------------------------------------
++ install VirtualBox
++ build virtual linux system in VB, detail: RHEL-7.4-20170504.0-Server-x85_64
++ test ssh viking@192.168.56.1 at virtual system. Re: connect: Network is unreachable
++ reset the ifcfg-enp0s3 at /etc/sysconfig/network-scripts/ as:
+	+ IPADDR = 192.168.56.2
+	+ NETMAS = 255.255.255.0
+	+ GATEWEY = 192.168.56.1
+	+ DNS1 = 192.168.1.1
+	- BOOTPROTO = dhcp
+	+ BOOTPROTO = static
++ save the change
++ input command: service network restart
++ Re: connect: Network is unreachable
+
+7/13/2017 09:48:28 by @Ding Weiqin
+---------------------------------------------------------------------
+
+
+
+---------------------------------------------------------------------
++ reset the ifcfg-enp0s3 at /etc/sysconfig/network-scripts/ as:
+	- IPADDR = 192.168.56.2
+	+ IPADDR = 192.168.56.101
+	- NETMAS = 255.255.255.0
+	- GATEWEY = 192.168.56.1	
+	- DNS1 = 192.168.1.1
++ save the change
++ input command: service network restart
++ try ping 192.168.56.1
++ Re: PING 192.168.56.1 (192.168.56.1) 56(84) bytes of data.
++ so the link of the host and the ghost is connect
++ The reason: VirtualBox is required the ip addr at least x.x.x.100
+
+7/13/2017 11:05:09 by @Ding Weiqin 
+----------------------------------------------------------------------
+
+
+----------------------------------------------------------------------
++ do it at host
++ send the kernel source to ghost
++ the source file is "kernel-3.10.0-663.el7.src.rpm"
++ use command : 
+	scp kernel-3.10.0-663.el7.src.rpm root@192.168.56.101 
++ to send the file to virtual linux RH
+
+7/13/2017 11:34:00 by @Ding Weiqin
+---------------------------------------------------------------------
+
+
+---------------------------------------------------------------------
++ software install source is based on the files in "/etc/yum.repos.d/"
++ the command "dnf" will check those files and use the urls to download
++ or install by local packages
+
+7/13/2017 11;44;24 by @Ding Weiqin
+---------------------------------------------------------------------
+
+
+---------------------------------------------------------------------
++ try to install kernel in the virtual linux
++ sleeping...
+07/13/17 13:52:04 by @Ding Weiqin
+---------------------------------------------------------------------
+
+
+------------------------------------------------------------------------
++ add quick insert time module
++ " 在插入状态下按下输入  xtime  后Enter来插入当前系统时间"
++ iab xtime <c-r>=strftime("%m/%d/%y %H:%M:%S by @Ding Weiqin")<cr>
++ add quick insert division line module
++ " 在插入状态下按下输入 xdivision 后Enter插入一行分割线"
++ iab xdivision <c-r>=strftime("------------------------------------------------------------------------")<cr>
+07/13/17 14:03:20 by @Ding Weiqin
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
++ prepare jobs for install kernel
++ 1.get the suitable kernel from www.kernel.org
++ 2.yum groupinstall Development toos		#安装开发包组
++ 3.rpm -ivh kernel-3.10.0-663.e17.src.rpm	#安装内核模块
++   显示warning: user mockbuild does not exist - using root	
+	warning: group mockbuild does not exist - using root
+	暂可忽略
+
++ 4.make help						#查看make help 文件
++ 以下命令在修改内核代码后重做
++ 5.make localmodconfig				#加载安装参照，仅按照当前本地模块进行来进行编译
++ 6.make							#编译 
++ 7.make modules_install			#进行模块安装
++ 8.make install					#安装
++ 以上---
+
+07/13/17 15:54:00 by @Ding Weiqin
+
++ 此项操作路径在虚拟机下：/root/rpmbuild/BUILD/kernel-3.10.0-663.el7/linux-3.10.0-663.el7.x86_64/
+07/13/17 16:58:15 by @Ding Weiqin
+------------------------------------------------------------------------
+
+
+------------------------------------------------------------------------
++ new mession						#在虚拟机环境下搭建一个网桥 
++ build a bridge
+
+07/13/17 15:56:13 by @Ding Weiqin
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
++ 因为缺少ISO9660模块，虚拟机中网桥相关的软件无法从镜像挂载。因此重新
++ 安装内核。
++ 此次安装在虚拟机初始内核版本中使用如下命令
++ make menuconfig
++ make 
++ make modules_install
++ make install
++ 以上
++ 成功以后重启虚拟机，进入新内核版本
++ 挂载/dev/sr0 到/mnt/iso
++ 下载网桥相关软件
++ #注意：每次重启Fedora后，要重新挂载所有的镜像，不然虚拟机无法启动？
+
+07/13/17 17:34:41 by @Ding Weiqin
+
++ 对于注意，其实只是虚拟机会报提醒，但是对于虚拟机的启动没有影响，是否有其他影响目前未知
+07/14/17 09:07:09 by @Ding Weiqin
+
+
++ 对于注意，可能会导致虚拟机内的cdrom无法访问，无法从本地软件源安装软件
++ 先在Fedora下挂载nfs文件，命令如下
+	mount -t nfs 193.160.34.166:/data/sdb2 /mnt/nfs
++ 之后再进入虚拟机，挂载/dev/sr0 到 /mnt/iso
+	mount /dev/sr0 /mnt/iso
++ 这样虚拟机下才能成功挂载安装源并且能从cdrom所指示url安装软件
+
+07/14/17 09:56:42 by @Ding Weiqin
+
++ 挂载安装源后，虚拟机确实可以从本地软件源安装，但是对于没有本地安装包
+的软件显然无能为力，对此，由于虚拟机设置的是Host-only模式，因此，我先
+尝试在虚拟机下把网桥搭建起来，考虑通过网桥访问本机的网络，以实现虚拟机
+的网络访问
+07/14/17 10:03:57 by @Ding Weiqin
+
+------------------------------------------------------------------------
+
+
+------------------------------------------------------------------------
++ reading 'man brctl'
++ brctl addbr <name>  ::= creates a new instance of the ethernet bridge.
+The network interface corresponding to the bridge will be called <name>
++ brctl delbr <name>  ::= deletes the instance <name> of the ethernet
+bridge. bridge must be down before deleted
++ brctl show  ::= show all 
++ brctl addif <brname> <ifname>  ::= make the interface <ifname> a port
+of the bridge <brname>
++ brctl delif <brname> <ifname>  ::= will detach the interface <ifname>
+from the bridge <brname>
+07/14/17 09:03:40 by @Ding Weiqin
+
+
++ create a new instance of the ethernet bridge in virtual linux.
++ brctl addbr bridge1
+07/14/17 09:41:07 by @Ding Weiqin
+
++ 当在虚拟机中执行了： brctl addif bridge1 enp0s3 后，主机与虚拟机之间的通信就断开了，猜测是占用了enp0s3网卡的原因，现在开始尝试新建一个网卡用于桥接
+07/14/17 10:24:15 by @Ding Weiqin
+
+
++ 退出虚拟机，直接使用VirtualBox，在setting>Network中可以看到，当前只是用了一个虚拟网卡，VirtualBox自身支持建立4个虚拟网卡，此处我令Adapter2为Enable Network Adapter，从而新添加了一个网卡，用于测试桥接模式。
++ 当然，还有另外一种方法，直接在虚拟机里设置新的虚拟网卡(为映射过来的物理网卡添加一个新的地址，因为同一个网卡可以绑定多个IP地址)，方法如下:
++ ip address add ::= 添加一个新的协议地址
++ 如：ip addr add local 192.168.4.1/48 brd + label eth0:1 dev eth0
+
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
++ ip 命令已经取代了 ifconfig
++ 如下替代：
+	ifconfig		=> ip link
+	ifconfig -a		=> ip addr show
+	ifconfig --help	=> ip help
+	ifconfig -s		=> ip -s link
+	ifconfig eth0 up=> ip link set eth0 up
+	ipmaddr			=> ip maddr
+	netstat			=> ss
+	netstat -i		=> ip -s link
+	route add/del	=> ip route add/del/show
++ 略...
++ 虚拟机中有ip 命令，没有ifconfig....
+
+07/14/17 10:50:45 by @Ding Weiqin 
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
++ 解压xz文件的方法
+	xz -d *.tar.xz
+	tar -xvf *.tar
+
+07/14/17 11:15:45 by @Ding Weiqin
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
++ install CLion
++ install c++ compiler
++ clone a virtual X as the other part of the bridge
++ change the IP Addr of the X_bak_7/17/2017 to 192.168.56.111
+
+07/17/17 09:54:00 by @Ding Weiqin
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
++ the original X use 192.168.56.101/102/103
++ the X_bak_7/17/2017 use 162.168.56.111/112/113
++ add the "printf("module is used") " at the vlan.c where changed in the new kernel
++ try to use the original X as the bridge, to link the X_bak_7/17/2017 and the Fedora.
+
+07/17/17 10:22:02 by @Ding Weiqin
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
++ 推出虚拟机，在本机下新建两对(总共4块)虚拟网卡
++ 使用如下命令：
+	tunctl -t tap0 -u root
+	ifconfig tap0 192.168.0.1 netmask 255.255.255.0 promisc
++ 能创建一块虚拟网卡
+
+07/17/17 13:34:14 by @Ding Weiqin
+------------------------------------------------------------------------
+
+
+------------------------------------------------------------------------
++ 先新建两块虚拟网卡 tap0 tap1  #tunctl -t tap0 -u root
+								#tunctl -t tap1 -u root
++ 新建网桥 br-zhai   #brctl addbr br-zhai
++ 将两块虚拟网卡加入网桥	#brctl addif br-zhai tap0
+							#brctl addif br-zhai tap1
++ 给网桥一个ip地址，使之启动	#ifconfig br-zhai 192.168.9.1 up
++ 查看网桥信息					#ifconfig br-zhai
++ 显示网桥转发表				#brctl showmacs br-zhai
+07/17/17 13:53:05 by @Ding Weiqin
+------------------------------------------------------------------------
+
+
+------------------------------------------------------------------------
++ 新建一对两块相连接的网卡 #ip link add tap33 type veth peer name tap44
++ 再新建一对两块相连接的网卡#ip link add tap11 type veth peer name tap22
++ 为每一对网卡设置ip地址，要注意，每一对网卡的ip地址要在同一个网段下
++ 新建两个netns		#ip netns add net1
+					#ip netns add net2
++ 将tap11放入网络命名空间net1中 #ip link set tap11 netns net1
++ 将tap33放入网络命名空间net2中 #ip link set tap33 netns net2
++ 使用命令 #ip netns exec net1 bash 进入网络命名空间net1中
++ 重开命令行 使用 #ip netns exec net2 bash 进入网络命名空间net2中
++ 分别为tap11,tap33 赋ip地址，打开命名空间中的lo口
++ 重开命令行，新建网桥		#brctl addbr br0
++ 将tap22,tap44 加入网桥中	#brctl addif br0 tap22
+							#brctl addif br0 tap44
++ 在各自的命名空间中ping另一命名空间中的网络端口
++ 使用tcpdump 进行抓包，检测网络是否通过网桥连接，网络是否通畅
+07/17/17 14:28:45 by @Ding Weiqin
+------------------------------------------------------------------------
+
+
+------------------------------------------------------------------------
++ tcpdump的用法记录
++
+
+
+07/17/17 17:48:00 by @Ding Weiqin
+------------------------------------------------------------------------
+
+
+------------------------------------------------------------------------
++ 写建立网桥的脚本并调试，文件：bridge.sh
++ 利用tcpdump查看ping报文结构
+
+07/18/17 09:35:27 by @Ding Weiqin 
+------------------------------------------------------------------------
+
+
+------------------------------------------------------------------------
++ 创建网桥环境时出现问题，问题描述如下
++ 使用ip link add tap11 type veth peer name tap22 创建一对相连接的网卡
++ 创建后分别给两张网卡赋IP地址并up，使用ping命令测试发现两网卡是互通的
++ 使用ip netns add net1 创建一新的网络命名空间，
++ 使用ip link set tap11 netns net1 将网卡tap11加入命名空间
++ 使用ip netns exec net1 ifconfig tap11 IPADDR up给tap11赋ip地址并使其与
++ tap22在同一个网段。
++ 再次使用ping命令测试两网卡，发现此时网卡并不能相互通讯，原因目前未知
+
+07/18/17 14:14:34 by @Ding Weiqin
+
++ 以上问题已经解决，在两个不同网络命名空间的网卡需要相同网段的ip地址
++ 非常傻逼的错误。。。
+07/18/17 16:21:40 by @Ding Weiqin 
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
++ 学习内核中网桥相关的代码以及代码结构
++ 自己写的构建网桥测试环境的shell教本已经可以正确运行，只需要在开机后进入
++ root用户运行脚本就可以搭建起实验环境
+
+07/19/17 10:56:33 by @Ding Weiqin
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
++ 内核kernel中函数编写时需要注意，在函数体中需要先将本函数所用到的所有
++ 变量全部声明，之后才能编写调用其他函数的部分，（有点类似区分了代码段
++ 和数据段）。不然编译时会报错导致编译不成功。
++ 用printk()写的显示提示，要使用dmesg命令查看
+
+07/19/17 14:23:33 by @Ding Weiqin
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
++ 新建bridge时,br_dev_setup(),br_add_bridge(),br_dev_init()此三函数被调用
++ ifconfig bridge up 时， 函数br_dev_xmit()被调用（7次）
++ brctl addif bridge eth0, add_del_if(),br_add_if()被调用
++ 初步建立模块，函数之间的关联图谱   building up the connection of modules and functions, and make up them relation map.
+
+07/19/17 14:41:12 by @Ding Weiqin
+------------------------------------------------------------------------
+
+
+------------------------------------------------------------------------
++ 查看结构体net_device 的定义和相关属性作用
++ 结构体所在位置/kernel*/linux*/include/linux/netdevice.h
+
+07/25/17 09:09:03 by @Ding Weiqin 
+
+
++ 查看网桥结构体详细描述
++ 导致bug出现的环境粗略描述为，在网桥移除过程中，如果网桥仍然处于开启
++ 状态，在所有的mdb entries已经被br_multicast_dev_del()移除之后，
++ 一个新的mdb entry仍然可以被加入到br_multicast_add_group()
+
+07/25/17 13:21:36 by @Ding Weiqin
+
++ 也可能导致内存泄漏，mdb hash 被重定位，同时由于mdb rehash而没被释放
++ 这种情况当用ip link remove a bridge or destroy a netns with a bridge 
++ device inside.
++ 读《基于内核模块的测试代码编写》
+
+07/25/17 14:13:17 by @Ding Weiqin
+
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
++ try git status
+
+07/26/17 10:31:29 by @Ding Weiqin
+
+
++ 在函数中加入dump_stack()函数打印堆栈
+
+07/26/17 14:34:10 by @Ding Weiqin
+
++ br_multicast_rcv()是在组播(多播)的情况下会被调用到
++ br_multicast_add_group() 会在br_multicast_rcv()中被调用到
++ 在新建，删除网桥部分添加堆栈打印和提示信息
++ xmit()函数是在信息传送时会被调用到
++ 无法定位	mld_ifc_timer_expire()
+			mld_sendpack()函数的位置
+
+07/26/17 17:01:06 by @Ding Weiqin
+
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
++ 尝试新建网桥后添加组播
+
+07/27/17 09:06:59 by @Ding Weiqin
+------------------------------------------------------------------------
+
+
+------------------------------------------------------------------------
+the utility of "find/xargs/tr"
+
+
+08/22/17 15:58:42 by @Ding Weiqin 
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+install kernel-debuginfo kernel-devel kernel-debug
+install systemtap 
+learning how to use systemtap and systemtap script	
+	1。构建一个解决该问题的常规应用程序
+		编写程序.......
+		gcc -o program program.c
+
+
+	2。选择一组过程，以便将这些过程转移到一个远程机器中，
+	通过这个方法将程序分解
+		将程序的模块划分，按照规则划分成为两个部分
+		执行I/O或者访问文件描述副的过程最好不要转移到
+		远程机器中
+		不要尝试将大量的数据结构传递给远程过程，
+		效率太低
+		division program.c into 
+		program1.c, program2.c
+
+		在添加其他代码前，利用编译器先检查语法是否正确
+		gcc -c program1.c
+		gcc -c program2.c
+
+
+	3。为远过程程序编写一个rpcgen规格说明，包括远程过程
+	调用的名字及其编号，还有对其参数的声明。酸则一个
+	远程程序号和一个版本号（通常为1）
+		规格文件包括：
+		声明在客户机或服务器（远程程序）中使用的常量
+		声明所使用的数据类型（特别是对远程过程的参数）
+		声明远程程序，每个程序中所包含的过程，以及他们
+		的参数类型
+
+
+	4。运行rpcgen来检查该规格说明，如果合法，便生成四个
+	源代码文件（program_name.x  
+	program_name.h  
+	program_name_clnt.c 
+	program_name_svc.c），
+	这些文件将在客户机和服务器程序中使用
+		$rpcgen program.x
+		如果正确，将会生成
+		program.h	program_clnt.c	program_svc.c
+		
+		编译客户机和服务器的程序
+		gcc -c program_clnt.c
+		gcc -c program_svc.c
+
+
+	5。为客户机端和服务器端编写stub接口例程
+
+
+	6。编译并连接客户机程序。他主要由四个主要文件构成：
+	最初的应用程序（远程过程被从中删除了的那个），
+	客户机端的stub（u由rpcgen生成），
+	客户机端的接口stub，
+	XDR过程（由rpcgen生成）
+	当所有的文件都被编译和连接到一起后，最终的可执行的
+	程序就是客户机
+
+
+	7。编译并连接服务器程序。他由四个主要文件构成：
+	最初的应用程序得来的过程，他们现在构成了远程程序
+	服务器端的stub（由rpcgen生成）
+	服务器端的接口stub
+	XDR过程（rpcgen生成的）
+	当所有的这些文件被编译连接到一起后，最终的可执行
+	程序就是服务器
+
+
+	8。在远程机器上启动服务器，在本地机器上启动客户机
+	
+
+
+
+08/23/17 13:36:07 by @Ding Weiqin
+------------------------------------------------------------------------
+
