@@ -1,0 +1,169 @@
+------------------------------------------------------------------------
+bridge: move bridge multicast cleanup to ndo_uninit
+Tue, 25 Apr 2017 22:58:37 +0800
+b1b9d366028ff580e6dd80b48a69c473361456f1
+
+During removing a bridge device, if the bridge is still up, a new mdb entry
+still can be added in br_multicast_add_group() after all mdb entries are
+removed in br_multicast_dev_del(). Like the path:
+
+  mld_ifc_timer_expire ->
+    mld_sendpack -> ...
+      br_multicast_rcv ->
+        br_multicast_add_group
+
+The new mp's timer will be set up. If the timer expires after the bridge
+is freed, it may cause use-after-free panic in br_multicast_group_expired.
+
+BUG: unable to handle kernel NULL pointer dereference at 0000000000000048
+IP: [<ffffffffa07ed2c8>] br_multicast_group_expired+0x28/0xb0 [bridge]
+Call Trace:
+ <IRQ>
+ [<ffffffff81094536>] call_timer_fn+0x36/0x110
+ [<ffffffffa07ed2a0>] ? br_mdb_free+0x30/0x30 [bridge]
+ [<ffffffff81096967>] run_timer_softirq+0x237/0x340
+ [<ffffffff8108dcbf>] __do_softirq+0xef/0x280
+ [<ffffffff8169889c>] call_softirq+0x1c/0x30
+ [<ffffffff8102c275>] do_softirq+0x65/0xa0
+ [<ffffffff8108e055>] irq_exit+0x115/0x120
+ [<ffffffff81699515>] smp_apic_timer_interrupt+0x45/0x60
+ [<ffffffff81697a5d>] apic_timer_interrupt+0x6d/0x80
+
+Nikolay also found it would cause a memory leak - the mdb hash is
+reallocated and not freed due to the mdb rehash.
+
+unreferenced object 0xffff8800540ba800 (size 2048):
+  backtrace:
+    [<ffffffff816e2287>] kmemleak_alloc+0x67/0xc0
+    [<ffffffff81260bea>] __kmalloc+0x1ba/0x3e0
+    [<ffffffffa05c60ee>] br_mdb_rehash+0x5e/0x340 [bridge]
+    [<ffffffffa05c74af>] br_multicast_new_group+0x43f/0x6e0 [bridge]
+    [<ffffffffa05c7aa3>] br_multicast_add_group+0x203/0x260 [bridge]
+    [<ffffffffa05ca4b5>] br_multicast_rcv+0x945/0x11d0 [bridge]
+    [<ffffffffa05b6b10>] br_dev_xmit+0x180/0x470 [bridge]
+    [<ffffffff815c781b>] dev_hard_start_xmit+0xbb/0x3d0
+    [<ffffffff815c8743>] __dev_queue_xmit+0xb13/0xc10
+    [<ffffffff815c8850>] dev_queue_xmit+0x10/0x20
+    [<ffffffffa02f8d7a>] ip6_finish_output2+0x5ca/0xac0 [ipv6]
+    [<ffffffffa02fbfc6>] ip6_finish_output+0x126/0x2c0 [ipv6]
+    [<ffffffffa02fc245>] ip6_output+0xe5/0x390 [ipv6]
+    [<ffffffffa032b92c>] NF_HOOK.constprop.44+0x6c/0x240 [ipv6]
+    [<ffffffffa032bd16>] mld_sendpack+0x216/0x3e0 [ipv6]
+    [<ffffffffa032d5eb>] mld_ifc_timer_expire+0x18b/0x2b0 [ipv6]
+
+This could happen when ip link remove a bridge or destroy a netns with a
+bridge device inside.
+
+With Nikolay's suggestion, this patch is to clean up bridge multicast in
+ndo_uninit after bridge dev is shutdown, instead of br_dev_delete, so
+that netif_running check in br_multicast_add_group can avoid this issue.
+
+v1->v2:
+  - fix this issue by moving br_multicast_dev_del to ndo_uninit, instead
+    of calling dev_close in br_dev_delete.
+
+(NOTE: Depends upon b6fe0440c637 ("bridge: implement missing ndo_uninit()"))
+
+Fixes: e10177abf842 ("bridge: multicast: fix handling of temp and perm entries")
+Reported-by: Jianwen Ji <jiji@redhat.com>
+Signed-off-by: Xin Long <lucien.xin@gmail.com>
+Reviewed-by: Stephen Hemminger <stephen@networkplumber.org>
+Signed-off-by: Nikolay Aleksandrov <nikolay@cumulusnetworks.com>
+Signed-off-by: David S. Miller <davem@davemloft.net>
+------------------------------------------------------------------------
+
+
+
+
+
+
+------------------------------------------------------------------------
+5b8d5429daa05bebef6ffd3297df3b502cc6f184
+
+Peter reported a kernel oops when executing the following command:
+
+$ ip link add name test type bridge vlan_default_pvid 1
+
+[13634.939408] BUG: unable to handle kernel NULL pointer dereference at
+0000000000000190
+[13634.939436] IP: __vlan_add+0x73/0x5f0
+[...]
+[13634.939783] Call Trace:
+[13634.939791]  ? pcpu_next_unpop+0x3b/0x50
+[13634.939801]  ? pcpu_alloc+0x3d2/0x680
+[13634.939810]  ? br_vlan_add+0x135/0x1b0
+[13634.939820]  ? __br_vlan_set_default_pvid.part.28+0x204/0x2b0
+[13634.939834]  ? br_changelink+0x120/0x4e0
+[13634.939844]  ? br_dev_newlink+0x50/0x70
+[13634.939854]  ? rtnl_newlink+0x5f5/0x8a0
+[13634.939864]  ? rtnl_newlink+0x176/0x8a0
+[13634.939874]  ? mem_cgroup_commit_charge+0x7c/0x4e0
+[13634.939886]  ? rtnetlink_rcv_msg+0xe1/0x220
+[13634.939896]  ? lookup_fast+0x52/0x370
+[13634.939905]  ? rtnl_newlink+0x8a0/0x8a0
+[13634.939915]  ? netlink_rcv_skb+0xa1/0xc0
+[13634.939925]  ? rtnetlink_rcv+0x24/0x30
+[13634.939934]  ? netlink_unicast+0x177/0x220
+[13634.939944]  ? netlink_sendmsg+0x2fe/0x3b0
+[13634.939954]  ? _copy_from_user+0x39/0x40
+[13634.939964]  ? sock_sendmsg+0x30/0x40
+[13634.940159]  ? ___sys_sendmsg+0x29d/0x2b0
+[13634.940326]  ? __alloc_pages_nodemask+0xdf/0x230
+[13634.940478]  ? mem_cgroup_commit_charge+0x7c/0x4e0
+[13634.940592]  ? mem_cgroup_try_charge+0x76/0x1a0
+[13634.940701]  ? __handle_mm_fault+0xdb9/0x10b0
+[13634.940809]  ? __sys_sendmsg+0x51/0x90
+[13634.940917]  ? entry_SYSCALL_64_fastpath+0x1e/0xad
+
+The problem is that the bridge's VLAN group is created after setting the
+default PVID, when registering the netdevice and executing its
+ndo_init().
+
+Fix this by changing the order of both operations, so that
+br_changelink() is only processed after the netdevice is registered,
+when the VLAN group is already initialized.
+
+Fixes: b6677449dff6 ("bridge: netlink: call br_changelink() during br_dev_newlink()")
+Signed-off-by: Nikolay Aleksandrov <nikolay@cumulusnetworks.com>
+Signed-off-by: Ido Schimmel <idosch@mellanox.com>
+Reported-by: Peter V. Saveliev <peter@svinota.eu>
+Tested-by: Peter V. Saveliev <peter@svinota.eu>
+Signed-off-by: David S. Miller <davem@davemloft.net>
+
+
+------------------------------------------------------------------------
+
+
+
+------------------------------------------------------------------------
+a13b2082ece95247779b9995c4e91b4246bed023
+
+Andreas reports kernel oops during rmmod of the br_netfilter module.
+Hannes debugged the oops down to a NULL rt6info->rt6i_indev.
+/：Andreas 报告了一个发生在使用rmmod命令移除br_netfilter模块过程中的内核opps。Hannes 将这个oops定位到了一个空的 rt6info->rt6i_indev.
+
+Problem is that br_netfilter has the nasty concept of adding a fake
+rtable to skb->dst; this happens in a br_netfilter prerouting hook.
+/：问题是br_netfilter有一个恶意概念，在添加一个fake_rtable到skd->dst
+这发生在br_netfilter prerouting hook;
+
+A second hook (in bridge LOCAL_IN) is supposed to remove these again
+before the skb is handed up the stack.
+/：第二个hook（在网桥LOCAL_IN）被认为会在skb提交stack之前再一次移除
+
+However, on module unload hooks get unregistered which means an
+skb could traverse the prerouting hook that attaches the fake_rtable,
+while the 'fake rtable remove' hook gets removed from the hooklist
+immediately after.
+/：然而，在模块没有加载的hook，得到那些没有注册的，意味着当“fake rtable remove” hook被从hooklist中移除时,skb可以穿过（通过）与fake_rtable相连的prerouting hook，
+Fixes: 34666d467cbf1e2e3c7 ("netfilter: bridge: move br_netfilter out of the core")
+Reported-by: Andreas Karis <akaris@redhat.com>
+Debugged-by: Hannes Frederic Sowa <hannes@stressinduktion.org>
+Signed-off-by: Florian Westphal <fw@strlen.de>
+Acked-by: Pablo Neira Ayuso <pablo@netfilter.org>
+Signed-off-by: David S. Miller <davem@davemloft.net>
+
+
+------------------------------------------------------------------------
+
+
